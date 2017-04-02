@@ -4,5 +4,5 @@
 ## 补充
 [相关博客地址](http://www.cnblogs.com/-Sai-/category/977591.html)
 
-original files文件夹里是原始文件
+mooc-setup-master文件夹里是原始文件
 my works文件夹里是我的相关作业代码
