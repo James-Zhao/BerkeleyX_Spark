@@ -5,4 +5,4 @@
 [相关博客地址](http://www.cnblogs.com/-Sai-/category/977591.html)
 
 mooc-setup-master文件夹里是原始文件
-my works文件夹里是我的相关作业代码
+my works文件夹里是我的相关作业的py文件和ipynb文件
