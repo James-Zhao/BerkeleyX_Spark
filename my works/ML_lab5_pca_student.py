@@ -24,7 +24,7 @@
 #  
 # #### Note that, for reference, you can look up the details of the relevant Spark methods in [Spark's Python API](https://spark.apache.org/docs/latest/api/python/pyspark.html#pyspark.RDD) and the relevant NumPy methods in the [NumPy Reference](http://docs.scipy.org/doc/numpy/reference/index.html)
 
-# In[1]:
+# In[2]:
 
 labVersion = 'cs190_week5_v_1_2'
 
@@ -37,7 +37,7 @@ labVersion = 'cs190_week5_v_1_2'
 #  
 # #### In our visualizations below, we will specify the mean of each dimension to be 50 and the variance along each dimension to be 1.  We will explore two different values for the covariance: 0 and 0.9. When the covariance is zero, the two dimensions are uncorrelated, and hence the data looks spherical.  In contrast, when the covariance is 0.9, the two dimensions are strongly (positively) correlated and thus the data is non-spherical.  As we'll see in Parts 1 and 2, the non-spherical data is amenable to dimensionality reduction via PCA, while the spherical data is not.
 
-# In[2]:
+# In[3]:
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -63,7 +63,7 @@ def create2DGaussian(mn, sigma, cov, n):
     return np.random.multivariate_normal(np.array([mn, mn]), np.array([[sigma, cov], [cov, sigma]]), n)
 
 
-# In[3]:
+# In[4]:
 
 dataRandom = create2DGaussian(mn=50, sigma=1, cov=0, n=100)
 
@@ -75,7 +75,7 @@ plt.scatter(dataRandom[:,0], dataRandom[:,1], s=14**2, c='#d6ebf2', edgecolors='
 pass
 
 
-# In[4]:
+# In[5]:
 
 dataCorrelated = create2DGaussian(mn=50, sigma=1, cov=.9, n=100)
 
@@ -92,12 +92,12 @@ pass
 # #### PCA can be interpreted as identifying the "directions" along which the data vary the most. In the first step of PCA, we must first center our data.  Working with our correlated dataset, first compute the mean of each feature (column) in the dataset.  Then for each observation, modify the features by subtracting their corresponding mean, to create a zero mean dataset.
 # #### Note that `correlatedData` is an RDD of NumPy arrays.  This allows us to perform certain operations more succinctly.  For example, we can sum the columns of our dataset using `correlatedData.sum()`.
 
-# In[6]:
+# In[9]:
 
 # TODO: Replace <FILL IN> with appropriate code
 correlatedData = sc.parallelize(dataCorrelated)
 
-meanCorrelated = correlatedData.sum()/float(correlatedData.count())
+meanCorrelated = correlatedData.mean()
 correlatedDataZeroMean = correlatedData.map(lambda x:x-meanCorrelated)
 
 print meanCorrelated
@@ -105,7 +105,7 @@ print correlatedData.take(1)
 print correlatedDataZeroMean.take(1)
 
 
-# In[7]:
+# In[10]:
 
 # TEST Interpreting PCA (1a)
 from test_helper import Test
@@ -120,15 +120,15 @@ Test.assertTrue(np.allclose(correlatedDataZeroMean.take(1)[0], [-0.28561917, 0.1
 #  
 # #### Note that [np.outer()](http://docs.scipy.org/doc/numpy/reference/generated/numpy.outer.html) can be used to calculate the outer product of two NumPy arrays.
 
-# In[8]:
+# In[22]:
 
 # TODO: Replace <FILL IN> with appropriate code
 # Compute the covariance matrix using outer products and correlatedDataZeroMean
-correlatedCov = [[ 0.99558386,  0.90148989], [0.90148989, 1.08607497]]
+correlatedCov = correlatedDataZeroMean.map(lambda x: np.outer(x,x)).sum()/correlatedDataZeroMean.count()
 print correlatedCov
 
 
-# In[9]:
+# In[24]:
 
 # TEST Sample covariance matrix (1b)
 covResult = [[ 0.99558386,  0.90148989], [0.90148989, 1.08607497]]
@@ -138,7 +138,7 @@ Test.assertTrue(np.allclose(covResult, correlatedCov), 'incorrect value for corr
 # #### **(1c) Covariance Function**
 # #### Next, use the expressions above to write a function to compute the sample covariance matrix for an arbitrary `data` RDD.
 
-# In[10]:
+# In[25]:
 
 # TODO: Replace <FILL IN> with appropriate code
 def estimateCovariance(data):
@@ -162,7 +162,7 @@ correlatedCovAuto= estimateCovariance(correlatedData)
 print correlatedCovAuto
 
 
-# In[11]:
+# In[26]:
 
 # TEST Covariance function (1c)
 correctCov = [[ 0.99558386,  0.90148989], [0.90148989, 1.08607497]]
@@ -176,7 +176,7 @@ Test.assertTrue(np.allclose(correctCov, correlatedCovAuto),
 # #### Use a function from `numpy.linalg` called [eigh](http://docs.scipy.org/doc/numpy/reference/generated/numpy.linalg.eigh.html) to perform the eigendecomposition.  Next, sort the eigenvectors based on their corresponding eigenvalues (from high to low), yielding a matrix where the columns are the eigenvectors (and the first column is the top eigenvector).  Note that [np.argsort](http://docs.scipy.org/doc/numpy/reference/generated/numpy.argsort.html#numpy-argsort) can be used to obtain the indices of the eigenvalues that correspond to the ascending order of eigenvalues.  Finally, set the `topComponent` variable equal to the top eigenvector or prinicipal component, which is a $\scriptsize 2 $-dimensional vector (array with two values).
 # #### Note that the eigenvectors returned by `eigh` appear in the columns and not the rows.  For example, the first eigenvector of `eigVecs` would be found in the first column and could be accessed using `eigVecs[:,0]`.
 
-# In[12]:
+# In[27]:
 
 # TODO: Replace <FILL IN> with appropriate code
 from numpy.linalg import eigh
@@ -192,7 +192,7 @@ topComponent = eigVecs[:,inds[0]]
 print '\ntop principal component: {0}'.format(topComponent)
 
 
-# In[13]:
+# In[28]:
 
 # TEST Eigendecomposition (1d)
 def checkBasis(vectors, correct):
@@ -204,7 +204,7 @@ Test.assertTrue(checkBasis(topComponent, [0.68915649, 0.72461254]),
 # #### **(1e) PCA scores**
 # #### We just computed the top principal component for a 2-dimensional non-spherical dataset.  Now let's use this principal component to derive a one-dimensional representation for the original data. To compute these compact representations, which are sometimes called PCA "scores", calculate the dot product between each data point in the raw data and the top principal component.
 
-# In[14]:
+# In[30]:
 
 # TODO: Replace <FILL IN> with appropriate code
 # Use the topComponent and the data from correlatedData to generate PCA scores
@@ -212,7 +212,7 @@ correlatedDataScores = correlatedData.map(lambda x:np.dot(x,topComponent))
 print 'one-dimensional data (first three):\n{0}'.format(np.asarray(correlatedDataScores.take(3)))
 
 
-# In[15]:
+# In[31]:
 
 # TEST PCA Scores (1e)
 firstThree = [70.51682806, 69.30622356, 71.13588168]
